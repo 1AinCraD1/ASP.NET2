@@ -1,0 +1,19 @@
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddJsonFile("info.json", optional: false, reloadOnChange: true);
+
+var app = builder.Build();
+
+app.MapGet("/mydata", (IConfiguration config) =>
+{
+    var name = config["Name"];
+    var age = config["Age"];
+    var city = config["City"];
+    var hobby = config["Hobby"];
+    var response = $"<p>Name: {name}</p>" +
+                   $"<p>Age: {age}</p>" +
+                   $"<p>City: {city}</p>" +
+                   $"<p>Hobby: {hobby}</p>";
+    return Results.Content(response, "text/html");
+});
+app.Run();
