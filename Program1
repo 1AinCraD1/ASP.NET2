@@ -1,0 +1,79 @@
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration
+    .AddJsonFile("companies.json", optional: false, reloadOnChange: true)
+    .AddXmlFile("companies.xml", optional: false, reloadOnChange: true)
+    .AddIniFile("companies.ini", optional: false, reloadOnChange: true);
+
+builder.Services.AddTransient<ICompanyAnalyzerService, CompanyAnalyzerService>();
+
+var app = builder.Build();
+
+app.MapGet("/company/largest", (ICompanyAnalyzerService companyAnalyzerService) =>
+{
+    var company = companyAnalyzerService.GetCompanyWithMostEmployees();
+    return Results.Ok(new { Company = company });
+});
+
+app.Run();
+
+public class Company
+{
+    public string Name { get; set; }
+    public int Employees { get; set; }
+}
+
+public interface ICompanyAnalyzerService
+{
+    string GetCompanyWithMostEmployees();
+}
+
+public class CompanyAnalyzerService : ICompanyAnalyzerService
+{
+    private readonly IConfiguration _configuration;
+
+    public CompanyAnalyzerService(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
+
+    public string GetCompanyWithMostEmployees()
+    {
+        try
+        {
+            var companiesJson = _configuration.GetSection("Companies").Get<List<Company>>();
+            var companiesXml = _configuration.GetSection("Companies:Company").Get<List<Company>>();
+            var companiesIni = new List<Company>
+            {
+                new Company
+                {
+                    Name = "Microsoft",
+                    Employees = int.Parse(_configuration["Microsoft:Employees"])
+                },
+                new Company
+                {
+                    Name = "Apple",
+                    Employees = int.Parse(_configuration["Apple:Employees"])
+                },
+                new Company
+                {
+                    Name = "Google",
+                    Employees = int.Parse(_configuration["Google:Employees"])
+                }
+            };
+
+            var allCompanies = new List<Company>();
+            if (companiesJson != null) allCompanies.AddRange(companiesJson);
+            if (companiesXml != null) allCompanies.AddRange(companiesXml);
+            allCompanies.AddRange(companiesIni);
+
+            var companyWithMostEmployees = allCompanies.OrderByDescending(c => c.Employees).FirstOrDefault();
+
+            return companyWithMostEmployees?.Name ?? "Компанії не знайдено";
+        }
+        catch (Exception ex)
+        {
+            return $"Помилка: {ex.Message}";
+        }
+    }
+}
